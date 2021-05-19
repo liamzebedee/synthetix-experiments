@@ -2,32 +2,56 @@
 # "hey"
 
 ENTRY = 0
+t = ENTRY
 
-# class FuturesMarket():
-#     def __init__(self, base_asset):
+class PriceOracle():
+    def __init__(self, initial):
+        self.prices = [initial]
+    
+    def get(self, t):
+        return self.prices[t]
+    
+    def push(self, price):
+        print("price ${} -> ${}".format(self.latest(), price))
+        self.prices.append(price)
+    
+    def latest(self):
+        return self.prices[-1]
 
-#     def get_price(self, t):
-#         return p
+
+class FuturesMarket():
+    def __init__(self, base_asset, price_oracle):
+        self.base_asset = base_asset
+        self.contracts = []
+        self.price_oracle = price_oracle
+    
+    def open(self, margin, size):
+        future = FutureContract(self, margin, size)
+        self.contracts.append(future)
+        return future
+
+    def get_price(self, t):
+        return self.price_oracle.get(t)
+    
+    # The excess contract units on one side or the other. 
+    # When the skew is positive, longs outweigh shorts; 
+    # when it is negative, shorts outweigh longs.
+    def skew(self, t):
+        return sum([ c.size(t) for c in self.contracts ], 0)
+    
+    # The total size of all outstanding contracts (on a given side of the market).
+    def size(self, t):
+        return sum([ abs(c.size(t)) for c in self.contracts ], 0)
+
 
 class FutureContract():
-    def __init__(self, margin, size, base_asset):
+    def __init__(self, market, margin, size):
+        self.market = market
         self.initial_margin = margin
-
-        self.base_asset = base_asset
         self._size = size
-        # self.size = self._size(ENTRY)
-    
-    @staticmethod
-    def open(margin, size, base_asset):
-        return FutureContract(margin, size, base_asset)
     
     def margin(self, t):
         return self.initial_margin
-        # if t == ENTRY:
-        #     return self.initial_margin
-        # else:
-        #     # remaining margin
-        #     return self.notional_value(ENTRY) / self.leverage(ENTRY)
     
     def remaining_margin(self, t):
         # TODO
@@ -38,14 +62,18 @@ class FutureContract():
         return self.notional_value(t) / self.remaining_margin(t)
 
     def size(self, t):
+        # position size = (margin * leverage) / base asset spot price (entry)
+        # q = (m_e * lambda_e) / p_e
+        # return self.initial_margin * self.initial_leverage / self.base_asset_spot_price(t)
         return self._size
-    # def size(self, t):
-    #     return self.initial_margin * self.initial_leverage / self.base_asset_spot_price(t)
     
     def position_type(self):
         return 'long' if size(0) > 0 else 'short'
 
     def notional_value(self, t):
+        # notional value = position size * base asset spot price
+        # v = qp
+
         # Entry notional value.
         # return self.size(t) * self.base_asset_spot_price(t)
         
@@ -53,86 +81,62 @@ class FutureContract():
         return self.size(t) * self.base_asset_spot_price(t)
 
     def base_asset_spot_price(self, t):
-        return prices[t]
+        return self.market.get_price(t)
     
     def profit(self, t):
+        # profit = notional value - notional value (entry)
+        # r = v - v_e
         return self.notional_value(t) - self.notional_value(ENTRY)
+    
 
-
-
-# Margin is 20% of spot price ($100).
-# Leverage is 5x.
-prices = [2000]
-t = ENTRY
-
-def update_price(price):
-    print("price ${} -> ${}".format(prices[-1], price))
-    prices.append(price)
-
-future = FutureContract.open(50., -2.5, 'ETH')
-
-
-print("INITIAL VALUES")
-print("Buy a future contract with initial margin of ${} and {}x leverage, spot price is ${}".format(
-    future.initial_margin,
+def debug_future(future, t):
+    return """
+margin: ${}
+remaining margin: ${}
+leverage: {}x
+size: {} {}
+notional value: ${}
+pnl: ${}
+""".format(
+    future.margin(t),
+    future.remaining_margin(t),
     future.leverage(t),
-    prices[0]
-))
-print("price: ${}".format(prices[t]))
-print("margin: ${}".format(future.margin(t)))
-print("remaining margin: ${}".format(future.remaining_margin(t)))
-print("leverage: {}x".format(future.leverage(t)))
-print("size: {} {}".format(future.size(t), future.base_asset))
-print("notional value: ${}".format(future.notional_value(t)))
-print("pnl: ${}".format(future.profit(t)))
-
-print("")
-# update_price(prices[-1] * 5/3.0)
-update_price(prices[-1] / 3.0)
-print("")
-t += 1
-
-print("price: ${}".format(prices[t]))
-print("margin: ${}".format(future.margin(t)))
-print("remaining margin: ${}".format(future.remaining_margin(t)))
-print("leverage: {}x".format(future.leverage(t)))
-print("size: {} {}".format(future.size(t), future.base_asset))
-print("notional value: ${}".format(future.notional_value(t)))
-print("pnl: ${}".format(future.profit(t)))
-
-
-# print('leverage (technical): ${}'.format(
-#     future.notional_value(t) / future.margin(t)
-# ))
-
-
-# print("pnl: ${}".format(future.profit(t)))
-
-# print("")
-# print("T+1 VALUES")
-# t = 1
-# print("price: ${}".format(prices[t]))
-# print("margin: ${}".format(future.margin(t)))
-# print("leverage: {}x".format(future.leverage(t)))
-# print("notional value: ${}".format(future.notional_value(t)))
-# print("size: ${}".format(future.size(t)))
-# print("pnl: ${}".format(future.profit(t)))
-
-
-# profit = notional value - notional value (entry)
-# r = v - v_e
-
-# notional value = position size * base asset spot price
-# v = qp
-
-# position size = (margin * leverage) / base asset spot price (entry)
-# q = (m_e * lambda_e) / p_e
+    future.size(t), future.market.base_asset,
+    future.notional_value(t),
+    future.profit(t)
+)
 
 
 
-# p_e = base_asset_spot_price_entry = 100
 
-# m_e = margin = 10
-# lambda_e = leverage =  
+if __name__ == '__main__':
 
-# %%
+    price_oracle = PriceOracle(200)
+    market = FuturesMarket("ETH", price_oracle)
+    future = market.open(50., -2.5)
+
+
+    print("INITIAL VALUES")
+    print("Buy a future contract with initial margin of ${} and {}x leverage, spot price is ${}".format(
+        future.initial_margin,
+        future.leverage(t),
+        price_oracle.get(0)
+    ))
+    print("price: ${}".format(price_oracle.get(t)))
+    print(debug_future(future, t))
+
+    print("")
+    # update_price(prices[-1] * 5/3.0)
+    price_oracle.push(price_oracle.latest() / 3.0)
+    print("")
+    t += 1
+
+    print("price: ${}".format(price_oracle.get(t)))
+    print(debug_future(future, t))
+
+
+    print("")
+    print("")
+    print("Market info")
+    print("Size: ${}".format(market.size(t)))
+    print("Skew: ${}".format(market.skew(t)))
