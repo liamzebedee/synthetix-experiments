@@ -12,7 +12,7 @@ async function run() {
 
     let skip = 0
     let stakers = []
-    while(1) {
+    while (1) {
         let res = await fetch("https://api.thegraph.com/subgraphs/name/synthetixio-team/synthetix", {
             "credentials": "omit",
             "headers": {
@@ -30,19 +30,19 @@ async function run() {
             "mode": "cors"
         })
         res = await res.json()
-        
-        if(res.errors) {
+
+        if (res.errors) {
             // console.error(res.error)
             break
             throw null
         }
-        if(!res.data) {
+        if (!res.data) {
             console.error(res)
             throw null
         }
-        const { data: { activeStakers }} = res
+        const { data: { activeStakers } } = res
 
-        if(activeStakers.length == 0) {
+        if (activeStakers.length == 0) {
             break
         }
 
@@ -50,9 +50,9 @@ async function run() {
         stakers = [...stakers, ...activeStakers]
         skip += 1000
     }
-    
+
     console.log(JSON.stringify(stakers))
-    
+
 }
 
 run().then(_ => console.log('done')).catch(ex => {

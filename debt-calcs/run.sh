@@ -9,4 +9,4 @@ LOCAL_DEBT=$(seth call $DEBT_CACHE 'currentDebt()(uint256,bool)' | head -n1)
 
 echo "scale=16; $MAINNET_DEBT / $LOCAL_DEBT" | bc
 
-echo Non snX backed debt: $(seth call $DEBT_CACHE 'totalNonSnxBackedDebt()(uint)' | seth --from-wei | LC_NUMERIC=en_US xargs printf "%'.f\n")
+echo Non snX backed debt: $(seth estimate $DEBT_CACHE 'totalNonSnxBackedDebt()(uint)' | seth --from-wei | LC_NUMERIC=en_US xargs printf "%'.f\n")
