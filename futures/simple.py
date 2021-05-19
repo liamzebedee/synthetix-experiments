@@ -4,6 +4,12 @@
 ENTRY = 0
 t = ENTRY
 
+# Utils.
+def clamp(n, smallest, largest): 
+    return max(smallest, min(n, largest))
+
+
+
 class PriceOracle():
     def __init__(self, initial):
         self.prices = [initial]
@@ -37,11 +43,32 @@ class FuturesMarket():
     # When the skew is positive, longs outweigh shorts; 
     # when it is negative, shorts outweigh longs.
     def skew(self, t):
+        # K
         return sum([ c.size(t) for c in self.contracts ], 0)
     
     # The total size of all outstanding contracts (on a given side of the market).
     def size(self, t):
+        # Q
         return sum([ abs(c.size(t)) for c in self.contracts ], 0)
+    
+    # The skew as a fraction of the total market size.
+    def proportional_skew(self, t):
+        # W
+        return self.skew(t) / self.size(t)
+    
+    # The proportional skew at which the maximum funding rate will be charged
+    def max_funding_skew_threshold(self, t):
+        # Initially 100%.
+        return 1.
+    
+    # Instantaneous funding rate
+    # A percentage per day.
+    def funding_rate(self, t):
+        return clamp(
+            -1 * self.proportional_skew(t) / self.max_funding_skew_threshold(t),
+            -1.,
+            1.
+        )
 
 
 class FutureContract():
